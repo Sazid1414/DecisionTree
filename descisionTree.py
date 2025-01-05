@@ -1,9 +1,9 @@
-
 import numpy as np
 import pandas as pd
 from collections import Counter
 from sklearn.model_selection import KFold
 from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.preprocessing import MinMaxScaler
 
 # ----------------------------
 # Common Utility Functions
@@ -69,10 +69,21 @@ def load_and_preprocess_data(filename):
 
     return X_train, X_test, y_train, y_test
 
+# Normalize the dataset and calculate distance to heaven (d2h)
+def calculate_d2h(X):
+    scaler = MinMaxScaler()
+    normalized_X = scaler.fit_transform(X)
+    heaven = np.zeros(normalized_X.shape[1])
+
+    def d2h(example):
+        return np.sqrt(np.sum((heaven - example) ** 2)) / np.sqrt(len(heaven))
+
+    return np.array([d2h(x) for x in normalized_X])
+
 # K-Fold Validation
 def k_fold_validation(X, y, impurity_function, k=5, max_depth=3):
     kf = KFold(n_splits=k, shuffle=True, random_state=42)
-    accuracies, f1_scores, f2_scores = [], [], []
+    accuracies, f1_scores, f2_scores, d2h_scores = [], [], [], []
 
     for train_index, val_index in kf.split(X):
         # Split data into training and validation sets
@@ -94,8 +105,12 @@ def k_fold_validation(X, y, impurity_function, k=5, max_depth=3):
         f1_scores.append(f1)
         f2_scores.append(f2)
 
-    # Return average accuracy, F1, and F2 scores across all folds
-    return np.mean(accuracies), np.mean(f1_scores), np.mean(f2_scores)
+        # Calculate distance to heaven (d2h)
+        d2h_val = calculate_d2h(X_val)
+        d2h_scores.append(np.mean(d2h_val))
+
+    # Return average accuracy, F1, F2, and d2h scores across all folds
+    return np.mean(accuracies), np.mean(f1_scores), np.mean(f2_scores), np.mean(d2h_scores)
 
 # ----------------------------
 # Impurity Calculation Functions
@@ -189,23 +204,25 @@ def print_tree(node, depth=0):
 
 if __name__ == "__main__":
     # Load and preprocess the dataset (Iris dataset)
-    X_train, X_test, y_train, y_test = load_and_preprocess_data("heart.csv")  # Ensure "iris.csv" is in the working directory
+    X_train, X_test, y_train, y_test = load_and_preprocess_data("iris.csv")  # Ensure "iris.csv" is in the working directory
 
     # Perform K-Fold validation using entropy
     print("Evaluating Decision Tree using Entropy as Impurity Measure...\n")
-    avg_accuracy_entropy, avg_f1_entropy, avg_f2_entropy = k_fold_validation(X_train.tolist(), y_train.tolist(), calculate_entropy, k=5, max_depth=3)
+    avg_accuracy_entropy, avg_f1_entropy, avg_f2_entropy, avg_d2h_entropy = k_fold_validation(X_train.tolist(), y_train.tolist(), calculate_entropy, k=5, max_depth=3)
     print(f"Average Accuracy with 5-Fold Cross-Validation (Entropy): {avg_accuracy_entropy * 100:.2f}%")
-    print(f"Average F1 Score with 5-Fold Cross-Validation (Entropy): {avg_f1_entropy:.4f}")
-    print(f"Average F2 Score with 5-Fold Cross-Validation (Entropy): {avg_f2_entropy:.4f}\n")
+    print(f"Average F1 Score with 5-Fold Cross-Validation (Entropy): {avg_f1_entropy * 100:.2f}%")
+    print(f"Average F2 Score with 5-Fold Cross-Validation (Entropy): {avg_f2_entropy * 100:.2f}%")
+    print(f"Average Distance to Heaven (d2h) with 5-Fold Cross-Validation (Entropy): {avg_d2h_entropy * 100:.2f}%\n")
 
     # Perform K-Fold validation using misclassification error
     print("Evaluating Decision Tree using Misclassification Error as Impurity Measure...\n")
-    avg_accuracy_misclassification, avg_f1_misclassification, avg_f2_misclassification = k_fold_validation(
+    avg_accuracy_misclassification, avg_f1_misclassification, avg_f2_misclassification, avg_d2h_misclassification = k_fold_validation(
         X_train.tolist(), y_train.tolist(), calculate_misclassification_error, k=5, max_depth=3
     )
     print(f"Average Accuracy with 5-Fold Cross-Validation (Misclassification Error): {avg_accuracy_misclassification * 100:.2f}%")
-    print(f"Average F1 Score with 5-Fold Cross-Validation (Misclassification Error): {avg_f1_misclassification:.4f}")
-    print(f"Average F2 Score with 5-Fold Cross-Validation (Misclassification Error): {avg_f2_misclassification:.4f}\n")
+    print(f"Average F1 Score with 5-Fold Cross-Validation (Misclassification Error): {avg_f1_misclassification * 100:.2f}%")
+    print(f"Average F2 Score with 5-Fold Cross-Validation (Misclassification Error): {avg_f2_misclassification * 100:.2f}%")
+    print(f"Average Distance to Heaven (d2h) with 5-Fold Cross-Validation (Misclassification Error): {avg_d2h_misclassification * 100:.2f}%\n")
 
     # Build a tree and print its structure
     print("Decision Tree Structure (Entropy):\n")
